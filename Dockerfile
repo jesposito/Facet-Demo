@@ -48,7 +48,8 @@ COPY --from=backend-builder /build/seeds/demo_assets ./backend/seeds/demo_assets
 RUN chmod +x ./facet
 
 ARG SEED_VERSION=1
-RUN export ENCRYPTION_KEY=$(openssl rand -hex 32) && \
+RUN echo "Seed version: $SEED_VERSION" && \
+    export ENCRYPTION_KEY=$(openssl rand -hex 32) && \
     echo "Running seed-demo command to populate demo data..." && \
     ./facet seed-demo --dir=/seed-data && \
     echo "Seed database created successfully"
