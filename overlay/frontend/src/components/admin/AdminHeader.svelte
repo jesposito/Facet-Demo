@@ -38,7 +38,7 @@
 			</button>
 
 			<a href="/admin" class="flex items-center gap-2">
-				<span class="text-xl font-bold text-gray-900 dark:text-white">Facet</span>
+				<span class="text-xl font-bold text-gray-900 dark:text-white">Facet-Demo</span>
 			</a>
 		</div>
 
