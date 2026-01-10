@@ -38,27 +38,33 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// RegisterSeedDemoCommand adds a CLI command to seed demo data
-// This is called from main.go to add the command before app.Start()
 func RegisterSeedDemoCommand(app *pocketbase.PocketBase) {
 	app.RootCmd.AddCommand(&cobra.Command{
 		Use:   "seed-demo",
 		Short: "Seed the database with demo data (The Doctor)",
 		Long:  "Loads comprehensive demo data into the database. Use this during Docker build to pre-populate the seed database.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Bootstrap the app (runs migrations, etc.) without starting the server
+			fmt.Println("Bootstrapping app...")
 			if err := app.Bootstrap(); err != nil {
 				return fmt.Errorf("failed to bootstrap app: %w", err)
 			}
 
+			fmt.Println("Running migrations...")
+			if _, err := app.RunAllMigrations(); err != nil {
+				return fmt.Errorf("failed to run migrations: %w", err)
+			}
+
 			fmt.Println("Checking for existing demo data...")
-			profile, _ := app.FindFirstRecordByFilter("profile", "")
+			profile, err := app.FindFirstRecordByFilter("profile", "")
+			if err != nil {
+				fmt.Printf("Note: %v (this is expected for fresh database)\n", err)
+			}
 			if profile != nil {
 				fmt.Println("Demo data already exists, skipping...")
 				return nil
 			}
 
-			fmt.Println("Loading demo data...")
+			fmt.Println("Loading demo data (The Doctor's profile)...")
 			if err := loadDemoDataIntoShadowTables(app); err != nil {
 				return fmt.Errorf("failed to load demo data: %w", err)
 			}
@@ -68,7 +74,11 @@ func RegisterSeedDemoCommand(app *pocketbase.PocketBase) {
 				return fmt.Errorf("failed to create demo user: %w", err)
 			}
 
-			fmt.Println("Demo data seeded successfully!")
+			fmt.Println("========================================")
+			fmt.Println("  Demo data seeded successfully!")
+			fmt.Println("  Profile: The Doctor")
+			fmt.Println("  Login: demo@example.com / demo123")
+			fmt.Println("========================================")
 			return nil
 		},
 	})
