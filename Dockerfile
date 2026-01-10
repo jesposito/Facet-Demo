@@ -1,8 +1,11 @@
-ARG UPSTREAM_IMAGE=ghcr.io/jesposito/facet:latest
-
 FROM golang:1.24-bookworm AS backend-builder
 
 WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libmupdf-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY upstream/backend/go.mod upstream/backend/go.sum ./
 RUN go mod download
@@ -11,7 +14,7 @@ COPY upstream/backend/ ./
 COPY scripts/apply-demo-transforms.sh /tmp/
 RUN chmod +x /tmp/apply-demo-transforms.sh && /tmp/apply-demo-transforms.sh /build
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o facet .
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o /facet .
 
 
 FROM node:20-alpine AS frontend-builder
@@ -41,6 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     openssl \
     gosu \
+    cron \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 1000 facet \
     && useradd -u 1000 -g facet -s /bin/bash -m facet
@@ -50,13 +54,14 @@ RUN mkdir -p /app /data /uploads \
 
 WORKDIR /app
 
-COPY --from=backend-builder /build/facet ./facet
+COPY --from=backend-builder /facet ./facet
 COPY --from=frontend-builder /build/build ./frontend/build
 COPY upstream/backend/seeds ./backend/seeds
 COPY upstream/docker/Caddyfile ./Caddyfile
-COPY upstream/docker/start.sh ./start.sh
+COPY overlay/docker/start.sh ./start.sh
+COPY overlay/docker/reset-demo.sh ./reset-demo.sh
 
-RUN chmod +x ./start.sh ./facet
+RUN chmod +x ./start.sh ./facet ./reset-demo.sh
 
 ENV POCKETBASE_URL=http://localhost:8090
 ENV ADMIN_EMAILS=demo@example.com
