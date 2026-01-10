@@ -35,7 +35,6 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func RegisterSeedDemoCommand(app *pocketbase.PocketBase) {
@@ -118,26 +117,23 @@ func ensureDemoUser(app *pocketbase.PocketBase) error {
 
 	existingUser, _ := app.FindAuthRecordByEmail(usersCollection, email)
 	if existingUser != nil {
-		passwordHash, _ := bcrypt.GenerateFromPassword([]byte("demo123"), bcrypt.DefaultCost)
-		existingUser.Set("password", string(passwordHash))
-		existingUser.Set("passwordChanged", false)
+		existingUser.SetPassword("demo123")
+		existingUser.Set("verified", true)
 		if err := app.Save(existingUser); err != nil {
 			return err
 		}
-		app.Logger().Info("Updated demo user password", "email", email)
+		fmt.Printf("  Updated demo user: %s\n", email)
 		return nil
 	}
 
 	user := core.NewRecord(usersCollection)
 	user.Set("email", email)
 	user.Set("verified", true)
-	user.Set("passwordChanged", false)
-	passwordHash, _ := bcrypt.GenerateFromPassword([]byte("demo123"), bcrypt.DefaultCost)
-	user.Set("password", string(passwordHash))
+	user.SetPassword("demo123")
 	if err := app.Save(user); err != nil {
-		return err
+		return fmt.Errorf("failed to create demo user: %w", err)
 	}
-	app.Logger().Info("Created demo user", "email", email)
+	fmt.Printf("  Created demo user: %s\n", email)
 	return nil
 }
 GOEOF
