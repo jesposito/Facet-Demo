@@ -1,0 +1,130 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Facet-Demo</Name>
+  <Repository>ghcr.io/jesposito/facet-demo:latest</Repository>
+  <Registry>https://github.com/jesposito/Facet-Demo</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+
+  <Support>https://github.com/jesposito/Facet-Demo/issues</Support>
+  <Project>https://github.com/jesposito/Facet-Demo</Project>
+
+  <Overview>
+Public demo instance of Facet - a self-hosted portfolio platform.
+
+Login: demo@example.com / demo123
+
+Data resets daily. Use this to explore Facet features before setting up your own instance.
+  </Overview>
+
+  <Category>Tools:</Category>
+
+  <WebUI>http://[IP]:[PORT:8081]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/jesposito/Facet-Demo/main/unraid/facet-demo-template.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/jesposito/Facet/main/assets/icon.png</Icon>
+
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+
+  <DonateText>Buy me a coffee</DonateText>
+  <DonateLink>https://buymeacoffee.com/jesposito</DonateLink>
+
+  <Requires/>
+
+  <!-- Network -->
+  <Config
+    Name="Web UI Port"
+    Target="8080"
+    Default="8081"
+    Mode="tcp"
+    Description="The port used to access Facet-Demo in your browser. Default 8081 to avoid conflict with main Facet instance."
+    Type="Port"
+    Display="always"
+    Required="true"
+    Mask="false">8081</Config>
+
+  <Config
+    Name="Demo Login"
+    Target=""
+    Default=""
+    Mode=""
+    Description="Login: demo@example.com / demo123 - Data resets daily at midnight UTC."
+    Type="Label"
+    Display="always"
+    Required="false"
+    Mask="false"/>
+
+  <!-- Permissions -->
+  <Config
+    Name="PUID"
+    Target="PUID"
+    Default="99"
+    Mode=""
+    Description="User ID for file permissions. Use 99 for Unraid's nobody user."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="false">99</Config>
+
+  <Config
+    Name="PGID"
+    Target="PGID"
+    Default="100"
+    Mode=""
+    Description="Group ID for file permissions. Use 100 for Unraid's users group."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="false">100</Config>
+
+  <!-- Storage -->
+  <Config
+    Name="App Data"
+    Target="/data"
+    Default="/mnt/user/appdata/facet-demo"
+    Mode="rw"
+    Description="Database storage. Resets daily - do not use for permanent data."
+    Type="Path"
+    Display="always"
+    Required="true"
+    Mask="false">/mnt/user/appdata/facet-demo</Config>
+
+  <Config
+    Name="Uploads"
+    Target="/uploads"
+    Default="/mnt/user/appdata/facet-demo/uploads"
+    Mode="rw"
+    Description="Upload storage. Resets daily."
+    Type="Path"
+    Display="always"
+    Required="true"
+    Mask="false">/mnt/user/appdata/facet-demo/uploads</Config>
+
+  <!-- Core App -->
+  <Config
+    Name="Public URL"
+    Target="APP_URL"
+    Default=""
+    Mode=""
+    Description="Public URL for Facet-Demo (e.g. https://facet-demo.yourdomain.com)."
+    Type="Variable"
+    Display="always"
+    Required="false"
+    Mask="false"/>
+
+  <Config
+    Name="Trust Proxy"
+    Target="TRUST_PROXY"
+    Default="true"
+    Mode=""
+    Description="Leave enabled if running behind a reverse proxy."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="false">true</Config>
+
+</Container>
