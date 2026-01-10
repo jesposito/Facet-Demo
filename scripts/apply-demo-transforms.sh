@@ -50,7 +50,7 @@ func RegisterSeedDemoCommand(app *pocketbase.PocketBase) {
 			}
 
 			fmt.Println("Running migrations...")
-			if _, err := app.RunAllMigrations(); err != nil {
+			if err := app.RunAllMigrations(); err != nil {
 				return fmt.Errorf("failed to run migrations: %w", err)
 			}
 
