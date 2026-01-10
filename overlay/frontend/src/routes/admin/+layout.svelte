@@ -1,0 +1,143 @@
+<script lang="ts">
+	import { run } from 'svelte/legacy';
+
+	import { onMount, onDestroy } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { pb, currentUser } from '$lib/pocketbase';
+	import { adminSidebarOpen } from '$lib/stores';
+	import { demoMode, initDemoMode } from '$lib/stores/demo';
+	import AdminSidebar from '$components/admin/AdminSidebar.svelte';
+	import AdminHeader from '$components/admin/AdminHeader.svelte';
+	interface Props {
+		children?: import('svelte').Snippet;
+	}
+
+	let { children }: Props = $props();
+
+	let loading = $state(true);
+	let authorized = $state(false);
+	let mounted = $state(false);
+
+	onMount(async () => {
+		mounted = true;
+
+		try {
+			const saved = localStorage.getItem('adminSidebarOpen');
+			if (saved === 'false') {
+				adminSidebarOpen.set(false);
+			} else if (saved === 'true') {
+				adminSidebarOpen.set(true);
+			} else if (window.innerWidth < 1024) {
+				adminSidebarOpen.set(false);
+			}
+		} catch (err) {
+			console.warn('Failed to restore sidebar state', err);
+		}
+
+		const onLoginPage = window.location.pathname === '/admin/login';
+
+		if (onLoginPage) {
+			loading = false;
+			return;
+		}
+
+		try {
+			await initDemoMode();
+		} catch (err) {
+			console.error('[LAYOUT] initDemoMode() failed:', err);
+		}
+
+		const isAuthenticated = $currentUser && pb.authStore.isValid;
+
+		if (isAuthenticated) {
+			authorized = true;
+			loading = false;
+		} else if (pb.authStore.isValid && !$currentUser) {
+			await new Promise(resolve => setTimeout(resolve, 150));
+
+			const stillAuthenticated = $currentUser && pb.authStore.isValid;
+			if (stillAuthenticated) {
+				authorized = true;
+				loading = false;
+			} else {
+				loading = false;
+				goto('/admin/login');
+			}
+		} else {
+			loading = false;
+			goto('/admin/login');
+		}
+	});
+
+	onDestroy(() => {
+		mounted = false;
+	});
+
+	let isLoginPage = $derived($page.url.pathname === '/admin/login');
+
+	run(() => {
+		if (isLoginPage) {
+			loading = false;
+			authorized = false;
+		}
+	});
+
+	run(() => {
+		if (mounted && !isLoginPage) {
+			const isAuth = $currentUser && pb.authStore.isValid;
+			if (isAuth && !authorized) {
+				authorized = true;
+				loading = false;
+			} else if (!isAuth && authorized) {
+				authorized = false;
+				goto('/admin/login');
+			}
+		}
+	});
+</script>
+
+{#if loading}
+	<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900" role="status" aria-label="Loading admin dashboard">
+		<div class="animate-pulse text-center">
+			<div class="w-12 h-12 mx-auto mb-4 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+				<svg class="w-6 h-6 text-primary-600 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+				</svg>
+			</div>
+			<p class="text-gray-600 dark:text-gray-400">Loading admin...</p>
+		</div>
+	</div>
+{:else if isLoginPage}
+	{@render children?.()}
+{:else if authorized}
+	<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+		<AdminHeader />
+
+		<div class="flex">
+			<AdminSidebar />
+
+			<main id="main-content" class="flex-1 p-6 {$adminSidebarOpen ? 'ml-64' : 'ml-16'} transition-all duration-200 mt-16">
+				{#key $demoMode}
+					{@render children?.()}
+				{/key}
+			</main>
+		</div>
+	</div>
+{:else}
+	<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+		<div class="text-center">
+			<div class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+				<svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+				</svg>
+			</div>
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Authentication Required</h2>
+			<p class="text-gray-600 dark:text-gray-400 mb-6">You must be logged in to access the admin panel.</p>
+			<a href="/admin/login" class="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+				Go to Login
+			</a>
+		</div>
+	</div>
+{/if}
