@@ -9,7 +9,7 @@ RUN go mod download
 
 COPY upstream/backend/ ./
 COPY scripts/apply-demo-transforms.sh /tmp/
-RUN chmod +x /tmp/apply-demo-transforms.sh && /tmp/apply-demo-transforms.sh
+RUN chmod +x /tmp/apply-demo-transforms.sh && /tmp/apply-demo-transforms.sh /build
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o facet .
 

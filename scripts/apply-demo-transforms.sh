@@ -3,26 +3,30 @@ set -e
 
 echo "Applying Facet-Demo transformations..."
 
-cd /build
+WORKDIR="${1:-.}"
+cd "$WORKDIR"
 
-sed -i 's/"demo_profile"/"profile"/g' backend/hooks/demo.go
-sed -i 's/"demo_experience"/"experience"/g' backend/hooks/demo.go
-sed -i 's/"demo_projects"/"projects"/g' backend/hooks/demo.go
-sed -i 's/"demo_education"/"education"/g' backend/hooks/demo.go
-sed -i 's/"demo_skills"/"skills"/g' backend/hooks/demo.go
-sed -i 's/"demo_certifications"/"certifications"/g' backend/hooks/demo.go
-sed -i 's/"demo_posts"/"posts"/g' backend/hooks/demo.go
-sed -i 's/"demo_talks"/"talks"/g' backend/hooks/demo.go
-sed -i 's/"demo_awards"/"awards"/g' backend/hooks/demo.go
-sed -i 's/"demo_views"/"views"/g' backend/hooks/demo.go
-sed -i 's/"demo_share_tokens"/"share_tokens"/g' backend/hooks/demo.go
-sed -i 's/"demo_contact_methods"/"contact_methods"/g' backend/hooks/demo.go
+echo "Working in: $(pwd)"
+ls -la
 
-sed -i 's/changeme123/demo123/g' backend/hooks/seed.go
-sed -i 's/changeme123/demo123/g' backend/hooks/auth.go
-sed -i 's/changeme123/demo123/g' backend/main.go
+sed -i 's/"demo_profile"/"profile"/g' hooks/demo.go
+sed -i 's/"demo_experience"/"experience"/g' hooks/demo.go
+sed -i 's/"demo_projects"/"projects"/g' hooks/demo.go
+sed -i 's/"demo_education"/"education"/g' hooks/demo.go
+sed -i 's/"demo_skills"/"skills"/g' hooks/demo.go
+sed -i 's/"demo_certifications"/"certifications"/g' hooks/demo.go
+sed -i 's/"demo_posts"/"posts"/g' hooks/demo.go
+sed -i 's/"demo_talks"/"talks"/g' hooks/demo.go
+sed -i 's/"demo_awards"/"awards"/g' hooks/demo.go
+sed -i 's/"demo_views"/"views"/g' hooks/demo.go
+sed -i 's/"demo_share_tokens"/"share_tokens"/g' hooks/demo.go
+sed -i 's/"demo_contact_methods"/"contact_methods"/g' hooks/demo.go
 
-cat > backend/hooks/demo_instance_init.go << 'GOEOF'
+sed -i 's/changeme123/demo123/g' hooks/seed.go
+sed -i 's/changeme123/demo123/g' hooks/auth.go
+sed -i 's/changeme123/demo123/g' main.go
+
+cat > hooks/demo_instance_init.go << 'GOEOF'
 package hooks
 
 import (
@@ -77,8 +81,8 @@ func ensureDemoUser(app *pocketbase.PocketBase) {
 }
 GOEOF
 
-if ! grep -q "InitDemoInstance" backend/main.go; then
-    sed -i '/hooks.RegisterDemoHandlers(app)/a\    hooks.InitDemoInstance(app)' backend/main.go
+if ! grep -q "InitDemoInstance" main.go; then
+    sed -i '/hooks.RegisterDemoHandlers(app)/a\    hooks.InitDemoInstance(app)' main.go
 fi
 
 echo "Transformations complete!"
