@@ -92,6 +92,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SEED_VERSION=${{ github.run_id }}
           cache-from: type=gha,scope=build-${{ matrix.suffix }}
           cache-to: type=gha,scope=build-${{ matrix.suffix }},mode=max
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
