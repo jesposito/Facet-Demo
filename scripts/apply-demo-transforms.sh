@@ -248,4 +248,48 @@ if ! grep -q "RegisterDemoRestrictions" main.go; then
     sed -i '/hooks.InitDemoInstance(app)/a\    hooks.RegisterDemoRestrictions(app)' main.go
 fi
 
+FRONTEND_DIR="../frontend"
+
+if [ -d "$FRONTEND_DIR" ]; then
+    echo "Applying frontend transformations..."
+    
+    sed -i 's/>Facet</>Facet-Demo</g' "$FRONTEND_DIR/src/components/admin/AdminHeader.svelte"
+    
+    sed -i 's/Sign In | Facet/Sign In | Facet-Demo/g' "$FRONTEND_DIR/src/routes/admin/login/+page.svelte"
+    sed -i 's/Sign in to Facet/Sign in to Facet-Demo/g' "$FRONTEND_DIR/src/routes/admin/login/+page.svelte"
+    sed -i 's/placeholder="admin@example.com"/placeholder="demo@example.com"/g' "$FRONTEND_DIR/src/routes/admin/login/+page.svelte"
+    
+    cat > "$FRONTEND_DIR/src/components/admin/DemoBanner.svelte" << 'SVELTE_EOF'
+<script lang="ts">
+    let dismissed = $state(false);
+</script>
+
+{#if !dismissed}
+<div class="fixed top-16 left-0 right-0 z-30 bg-amber-500 text-amber-950 text-center py-2 px-4 text-sm font-medium shadow-sm">
+    <span>
+        🎭 Public Demo — Data resets daily at midnight UTC — 
+        <span class="font-semibold">Login: demo@example.com / demo123</span>
+    </span>
+    <button 
+        onclick={() => dismissed = true}
+        class="ml-4 text-amber-800 hover:text-amber-950 font-bold"
+        aria-label="Dismiss banner"
+    >
+        ✕
+    </button>
+</div>
+{/if}
+SVELTE_EOF
+
+    sed -i "/import AdminHeader from/a\\	import DemoBanner from '\$components/admin/DemoBanner.svelte';" "$FRONTEND_DIR/src/routes/admin/+layout.svelte"
+    sed -i 's/<AdminHeader \/>/<AdminHeader \/>\n\t\t<DemoBanner \/>/g' "$FRONTEND_DIR/src/routes/admin/+layout.svelte"
+    sed -i 's/mt-16">/mt-28">/g' "$FRONTEND_DIR/src/routes/admin/+layout.svelte"
+    
+    sed -i 's/<div class="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700/<div class="hidden relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700/g' "$FRONTEND_DIR/src/components/admin/AdminHeader.svelte"
+    
+    echo "Frontend transformations applied"
+else
+    echo "Warning: Frontend directory not found at $FRONTEND_DIR"
+fi
+
 echo "Transformations complete!"
