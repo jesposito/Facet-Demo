@@ -28,6 +28,7 @@ COPY upstream/frontend/ ./
 COPY overlay/frontend/ ./
 COPY scripts/apply-frontend-transforms.sh /tmp/
 RUN chmod +x /tmp/apply-frontend-transforms.sh && /tmp/apply-frontend-transforms.sh /build
+ENV NODE_ENV=production
 RUN npm run build
 
 
@@ -52,23 +53,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && groupadd -g 1000 facet \
     && useradd -u 1000 -g facet -s /bin/bash -m facet
 
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN mkdir -p /app /data /uploads \
     && chown -R facet:facet /app /data /uploads
 
 WORKDIR /app
 
 COPY --from=backend-builder /facet ./facet
+COPY --from=backend-builder /build/seeds/demo_assets ./backend/seeds/demo_assets
 COPY --from=frontend-builder /build/build ./frontend/build
-COPY upstream/backend/seeds ./backend/seeds
+COPY --from=frontend-builder /build/package.json ./frontend/
+COPY --from=frontend-builder /build/node_modules ./frontend/node_modules
 COPY upstream/docker/Caddyfile ./Caddyfile
 COPY overlay/docker/start.sh ./start.sh
 COPY overlay/docker/reset-demo.sh ./reset-demo.sh
 
 RUN chmod +x ./start.sh ./facet ./reset-demo.sh
 
+ENV NODE_ENV=production
 ENV POCKETBASE_URL=http://localhost:8090
 ENV ADMIN_EMAILS=demo@example.com
 ENV DEMO_MODE=true
+ENV PORT=3000
+ENV HOST=0.0.0.0
 
 EXPOSE 8080
 

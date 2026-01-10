@@ -15,6 +15,11 @@ echo "║  Data resets daily at midnight UTC                        ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
+if [ -z "$ENCRYPTION_KEY" ]; then
+    echo "Generating demo ENCRYPTION_KEY..."
+    export ENCRYPTION_KEY=$(openssl rand -hex 32)
+fi
+
 mkdir -p "$DATA_DIR" "$UPLOAD_DIR"
 
 if [ -n "$PUID" ] && [ -n "$PGID" ]; then
@@ -50,6 +55,7 @@ cd /app
 
 echo "Starting Caddy..."
 caddy start --config Caddyfile
+echo "Successfully started Caddy (pid=$!) - Caddy is running in the background"
 
 echo "Starting backend (PocketBase)..."
 ./facet serve --http=0.0.0.0:8090 --dir="$DATA_DIR" &
