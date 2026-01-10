@@ -32,6 +32,30 @@ ENV NODE_ENV=production
 RUN npm run build
 
 
+FROM debian:bookworm-slim AS seed-generator
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /app /seed-data /seed-uploads
+WORKDIR /app
+
+COPY --from=backend-builder /facet ./facet
+COPY --from=backend-builder /build/seeds/demo_assets ./backend/seeds/demo_assets
+
+RUN chmod +x ./facet
+
+RUN export ENCRYPTION_KEY=$(openssl rand -hex 32) && \
+    timeout 30 ./facet serve --http=127.0.0.1:8090 --dir=/seed-data & \
+    sleep 15 && \
+    pkill -f facet || true && \
+    sleep 2
+
+RUN ls -la /seed-data/
+
+
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -57,13 +81,14 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /app /data /uploads \
+RUN mkdir -p /app /data /uploads /app/seed-data/data /app/seed-data/uploads \
     && chown -R facet:facet /app /data /uploads
 
 WORKDIR /app
 
 COPY --from=backend-builder /facet ./facet
 COPY --from=backend-builder /build/seeds/demo_assets ./backend/seeds/demo_assets
+COPY --from=seed-generator /seed-data/ ./seed-data/data/
 COPY --from=frontend-builder /build/build ./frontend/build
 COPY --from=frontend-builder /build/package.json ./frontend/
 COPY --from=frontend-builder /build/node_modules ./frontend/node_modules

@@ -22,6 +22,13 @@ fi
 
 mkdir -p "$DATA_DIR" "$UPLOAD_DIR"
 
+if [ -d "/app/seed-data/data" ] && [ ! -f "$DATA_DIR/data.db" ]; then
+    echo "First run detected - restoring seed data..."
+    cp -r /app/seed-data/data/* "$DATA_DIR/" 2>/dev/null || true
+    cp -r /app/seed-data/uploads/* "$UPLOAD_DIR/" 2>/dev/null || true
+    echo "Seed data restored."
+fi
+
 if [ -n "$PUID" ] && [ -n "$PGID" ]; then
     if getent group "$PGID" > /dev/null 2>&1; then
         GROUP_NAME=$(getent group "$PGID" | cut -d: -f1)
