@@ -27,7 +27,8 @@ RUN npm ci
 COPY upstream/frontend/ ./
 COPY overlay/frontend/ ./
 COPY scripts/apply-frontend-transforms.sh /tmp/
-RUN chmod +x /tmp/apply-frontend-transforms.sh && /tmp/apply-frontend-transforms.sh /build
+ARG SEED_VERSION=1
+RUN echo "Build version: $SEED_VERSION" && chmod +x /tmp/apply-frontend-transforms.sh && /tmp/apply-frontend-transforms.sh /build
 ENV NODE_ENV=production
 RUN npm run build
 
