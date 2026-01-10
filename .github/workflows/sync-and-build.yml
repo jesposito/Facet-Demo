@@ -26,7 +26,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: jesposito/facet-demo
   UPSTREAM_REPO: jesposito/Facet
 
 jobs:
