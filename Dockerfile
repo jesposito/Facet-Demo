@@ -25,6 +25,9 @@ COPY upstream/frontend/package*.json ./
 RUN npm ci
 
 COPY upstream/frontend/ ./
+COPY overlay/frontend/ ./
+COPY scripts/apply-frontend-transforms.sh /tmp/
+RUN chmod +x /tmp/apply-frontend-transforms.sh && /tmp/apply-frontend-transforms.sh /build
 RUN npm run build
 
 
