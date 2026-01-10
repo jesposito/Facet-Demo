@@ -83,11 +83,18 @@ func RegisterSeedDemoCommand(app *pocketbase.PocketBase) {
 	})
 }
 
-// InitDemoInstance registers a hook to check/load demo data on first request
-// This is a fallback in case seed-demo wasn't run during build
+// InitDemoInstance registers a hook to ensure demo user exists on startup
+// Always runs to guarantee demo login works
 func InitDemoInstance(app *pocketbase.PocketBase) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-		// Check if we need to load demo data
+		// Always ensure demo user exists (critical for demo login)
+		if err := ensureDemoUser(app); err != nil {
+			app.Logger().Error("Failed to ensure demo user", "error", err)
+		} else {
+			app.Logger().Info("Demo user verified/created successfully")
+		}
+		
+		// Check if we need to load demo data (fallback)
 		profile, _ := app.FindFirstRecordByFilter("profile", "")
 		if profile == nil {
 			app.Logger().Info("No profile found, initializing demo data...")
@@ -96,44 +103,53 @@ func InitDemoInstance(app *pocketbase.PocketBase) {
 			} else {
 				app.Logger().Info("Demo data loaded successfully")
 			}
-			if err := ensureDemoUser(app); err != nil {
-				app.Logger().Error("Failed to create demo user", "error", err)
-			}
 		}
 		return se.Next()
 	})
 }
 
 func ensureDemoUser(app *pocketbase.PocketBase) error {
+	fmt.Println("  [ensureDemoUser] Looking for users collection...")
 	usersCollection, err := app.FindCollectionByNameOrId("users")
 	if err != nil {
+		fmt.Printf("  [ensureDemoUser] ERROR: users collection not found: %v\n", err)
 		return fmt.Errorf("users collection not found: %w", err)
 	}
+	fmt.Printf("  [ensureDemoUser] Found users collection: %s\n", usersCollection.Id)
 
 	email := os.Getenv("ADMIN_EMAILS")
 	if email == "" {
 		email = "demo@example.com"
 	}
+	fmt.Printf("  [ensureDemoUser] Target email: %s\n", email)
 
-	existingUser, _ := app.FindAuthRecordByEmail(usersCollection, email)
+	existingUser, findErr := app.FindAuthRecordByEmail(usersCollection, email)
+	if findErr != nil {
+		fmt.Printf("  [ensureDemoUser] No existing user found (expected for first run): %v\n", findErr)
+	}
+	
 	if existingUser != nil {
+		fmt.Printf("  [ensureDemoUser] Found existing user, updating password...\n")
 		existingUser.SetPassword("demo123")
 		existingUser.Set("verified", true)
 		if err := app.Save(existingUser); err != nil {
+			fmt.Printf("  [ensureDemoUser] ERROR updating user: %v\n", err)
 			return err
 		}
-		fmt.Printf("  Updated demo user: %s\n", email)
+		fmt.Printf("  [ensureDemoUser] SUCCESS: Updated demo user: %s\n", email)
 		return nil
 	}
 
+	fmt.Printf("  [ensureDemoUser] Creating new user...\n")
 	user := core.NewRecord(usersCollection)
 	user.Set("email", email)
 	user.Set("verified", true)
 	user.SetPassword("demo123")
 	if err := app.Save(user); err != nil {
+		fmt.Printf("  [ensureDemoUser] ERROR creating user: %v\n", err)
 		return fmt.Errorf("failed to create demo user: %w", err)
 	}
-	fmt.Printf("  Created demo user: %s\n", email)
+	fmt.Printf("  [ensureDemoUser] SUCCESS: Created demo user: %s\n", email)
 	return nil
 }
 GOEOF
