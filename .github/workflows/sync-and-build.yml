@@ -20,6 +20,11 @@ on:
         description: 'Upstream ref to build from (tag, branch, or commit)'
         required: false
         default: 'main'
+      no_cache:
+        description: 'Skip Docker cache (force fresh build)'
+        required: false
+        type: boolean
+        default: false
   
   schedule:
     - cron: '0 1 * * *'
@@ -94,7 +99,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SEED_VERSION=${{ github.run_id }}
-          cache-from: type=gha,scope=build-${{ matrix.suffix }}
+          no-cache: ${{ github.event.inputs.no_cache == 'true' }}
+          cache-from: ${{ github.event.inputs.no_cache != 'true' && format('type=gha,scope=build-{0}', matrix.suffix) || '' }}
           cache-to: type=gha,scope=build-${{ matrix.suffix }},mode=max
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
 
