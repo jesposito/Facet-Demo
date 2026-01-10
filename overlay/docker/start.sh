@@ -24,9 +24,16 @@ mkdir -p "$DATA_DIR" "$UPLOAD_DIR"
 
 if [ -d "/app/seed-data/data" ] && [ ! -f "$DATA_DIR/data.db" ]; then
     echo "First run detected - restoring seed data..."
-    cp -r /app/seed-data/data/* "$DATA_DIR/" 2>/dev/null || true
-    cp -r /app/seed-data/uploads/* "$UPLOAD_DIR/" 2>/dev/null || true
+    cp -a /app/seed-data/data/. "$DATA_DIR/" 2>/dev/null || true
+    cp -a /app/seed-data/uploads/. "$UPLOAD_DIR/" 2>/dev/null || true
     echo "Seed data restored."
+    ls -la "$DATA_DIR/"
+fi
+
+if [ ! -f "$DATA_DIR/data.db" ]; then
+    echo "ERROR: data.db not found after seed restore!"
+    echo "Contents of DATA_DIR ($DATA_DIR):"
+    ls -la "$DATA_DIR/" || echo "  (empty or does not exist)"
 fi
 
 if [ -n "$PUID" ] && [ -n "$PGID" ]; then
@@ -63,6 +70,14 @@ cd /app
 echo "Starting Caddy..."
 caddy start --config Caddyfile
 echo "Successfully started Caddy (pid=$!) - Caddy is running in the background"
+
+echo "Ensuring demo user exists..."
+./facet ensure-demo-user --dir="$DATA_DIR"
+ENSURE_USER_EXIT=$?
+if [ $ENSURE_USER_EXIT -ne 0 ]; then
+    echo "WARNING: ensure-demo-user failed with exit code $ENSURE_USER_EXIT"
+    echo "Login may not work. Check logs above for details."
+fi
 
 echo "Starting backend (PocketBase)..."
 ./facet serve --http=0.0.0.0:8090 --dir="$DATA_DIR" &

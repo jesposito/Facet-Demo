@@ -81,6 +81,31 @@ func RegisterSeedDemoCommand(app *pocketbase.PocketBase) {
 			return nil
 		},
 	})
+
+	app.RootCmd.AddCommand(&cobra.Command{
+		Use:   "ensure-demo-user",
+		Short: "Ensure demo user exists (idempotent, run at container startup)",
+		Long:  "Creates or updates the demo user. Safe to run multiple times. Use this at container startup to guarantee login works.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("[ensure-demo-user] Bootstrapping app...")
+			if err := app.Bootstrap(); err != nil {
+				return fmt.Errorf("failed to bootstrap app: %w", err)
+			}
+
+			fmt.Println("[ensure-demo-user] Running migrations...")
+			if err := app.RunAllMigrations(); err != nil {
+				return fmt.Errorf("failed to run migrations: %w", err)
+			}
+
+			fmt.Println("[ensure-demo-user] Ensuring demo user exists...")
+			if err := ensureDemoUser(app); err != nil {
+				return fmt.Errorf("failed to ensure demo user: %w", err)
+			}
+
+			fmt.Println("[ensure-demo-user] Demo user ready: demo@example.com / demo123")
+			return nil
+		},
+	})
 }
 
 // InitDemoInstance registers a hook to ensure demo user exists on startup
