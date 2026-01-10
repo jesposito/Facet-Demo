@@ -68,13 +68,6 @@ docker run -d \
   ghcr.io/jesposito/facet-demo:latest
 ```
 
-### Daily Reset Cron (Optional)
+### Daily Reset
 
-To reset data daily, add to User Scripts or cron:
-
-```bash
-# Reset at midnight
-0 0 * * * /path/to/daily-reset.sh
-```
-
-See [scripts/daily-reset.sh](scripts/daily-reset.sh) for the reset script.
+Data automatically resets at midnight UTC - no configuration needed. The reset is built into the container.
