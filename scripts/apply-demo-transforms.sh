@@ -30,30 +30,75 @@ cat > hooks/demo_instance_init.go << 'GOEOF'
 package hooks
 
 import (
+	"fmt"
 	"os"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/spf13/cobra"
 	"golang.org/x/crypto/bcrypt"
 )
 
+// RegisterSeedDemoCommand adds a CLI command to seed demo data
+// This is called from main.go to add the command before app.Start()
+func RegisterSeedDemoCommand(app *pocketbase.PocketBase) {
+	app.RootCmd.AddCommand(&cobra.Command{
+		Use:   "seed-demo",
+		Short: "Seed the database with demo data (The Doctor)",
+		Long:  "Loads comprehensive demo data into the database. Use this during Docker build to pre-populate the seed database.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Bootstrap the app (runs migrations, etc.) without starting the server
+			if err := app.Bootstrap(); err != nil {
+				return fmt.Errorf("failed to bootstrap app: %w", err)
+			}
+
+			fmt.Println("Checking for existing demo data...")
+			profile, _ := app.FindFirstRecordByFilter("profile", "")
+			if profile != nil {
+				fmt.Println("Demo data already exists, skipping...")
+				return nil
+			}
+
+			fmt.Println("Loading demo data...")
+			if err := loadDemoDataIntoShadowTables(app); err != nil {
+				return fmt.Errorf("failed to load demo data: %w", err)
+			}
+
+			fmt.Println("Creating demo user...")
+			if err := ensureDemoUser(app); err != nil {
+				return fmt.Errorf("failed to create demo user: %w", err)
+			}
+
+			fmt.Println("Demo data seeded successfully!")
+			return nil
+		},
+	})
+}
+
+// InitDemoInstance registers a hook to check/load demo data on first request
+// This is a fallback in case seed-demo wasn't run during build
 func InitDemoInstance(app *pocketbase.PocketBase) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+		// Check if we need to load demo data
 		profile, _ := app.FindFirstRecordByFilter("profile", "")
 		if profile == nil {
 			app.Logger().Info("No profile found, initializing demo data...")
 			if err := loadDemoDataIntoShadowTables(app); err != nil {
 				app.Logger().Error("Failed to load demo data", "error", err)
+			} else {
+				app.Logger().Info("Demo data loaded successfully")
 			}
-			ensureDemoUser(app)
+			if err := ensureDemoUser(app); err != nil {
+				app.Logger().Error("Failed to create demo user", "error", err)
+			}
 		}
 		return se.Next()
 	})
 }
 
-func ensureDemoUser(app *pocketbase.PocketBase) {
+func ensureDemoUser(app *pocketbase.PocketBase) error {
 	usersCollection, err := app.FindCollectionByNameOrId("users")
 	if err != nil {
-		return
+		return fmt.Errorf("users collection not found: %w", err)
 	}
 
 	email := os.Getenv("ADMIN_EMAILS")
@@ -66,8 +111,11 @@ func ensureDemoUser(app *pocketbase.PocketBase) {
 		passwordHash, _ := bcrypt.GenerateFromPassword([]byte("demo123"), bcrypt.DefaultCost)
 		existingUser.Set("password", string(passwordHash))
 		existingUser.Set("passwordChanged", false)
-		app.Save(existingUser)
-		return
+		if err := app.Save(existingUser); err != nil {
+			return err
+		}
+		app.Logger().Info("Updated demo user password", "email", email)
+		return nil
 	}
 
 	user := core.NewRecord(usersCollection)
@@ -76,8 +124,11 @@ func ensureDemoUser(app *pocketbase.PocketBase) {
 	user.Set("passwordChanged", false)
 	passwordHash, _ := bcrypt.GenerateFromPassword([]byte("demo123"), bcrypt.DefaultCost)
 	user.Set("password", string(passwordHash))
-	app.Save(user)
+	if err := app.Save(user); err != nil {
+		return err
+	}
 	app.Logger().Info("Created demo user", "email", email)
+	return nil
 }
 GOEOF
 
@@ -174,8 +225,13 @@ func RegisterDemoRestrictions(app *pocketbase.PocketBase) {
 }
 GOEOF
 
+# Add RegisterSeedDemoCommand before app.Start() - this adds the CLI command
+if ! grep -q "RegisterSeedDemoCommand" main.go; then
+    sed -i '/hooks.RegisterDemoHandlers(app)/a\    hooks.RegisterSeedDemoCommand(app)' main.go
+fi
+
 if ! grep -q "InitDemoInstance" main.go; then
-    sed -i '/hooks.RegisterDemoHandlers(app)/a\    hooks.InitDemoInstance(app)' main.go
+    sed -i '/hooks.RegisterSeedDemoCommand(app)/a\    hooks.InitDemoInstance(app)' main.go
 fi
 
 if ! grep -q "RegisterDemoRestrictions" main.go; then

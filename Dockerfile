@@ -47,19 +47,10 @@ COPY --from=backend-builder /build/seeds/demo_assets ./backend/seeds/demo_assets
 
 RUN chmod +x ./facet
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
-
 RUN export ENCRYPTION_KEY=$(openssl rand -hex 32) && \
-    ./facet serve --http=127.0.0.1:8090 --dir=/seed-data & \
-    sleep 5 && \
-    echo "Triggering demo data load..." && \
-    curl -s http://127.0.0.1:8090/api/collections/profile/records || true && \
-    sleep 10 && \
-    echo "Verifying data loaded..." && \
-    curl -s http://127.0.0.1:8090/api/collections/profile/records | head -c 200 && \
-    echo "" && \
-    pkill -f facet || true && \
-    sleep 2
+    echo "Running seed-demo command to populate demo data..." && \
+    ./facet seed-demo --dir=/seed-data && \
+    echo "Seed database created successfully"
 
 RUN ls -la /seed-data/ && echo "Database size:" && ls -lh /seed-data/data.db
 
