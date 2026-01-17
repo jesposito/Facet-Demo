@@ -8,6 +8,22 @@ cd "$WORKDIR"
 
 echo "Working in: $(pwd)"
 
+echo "Disabling password change modal..."
+LAYOUT_FILE="src/routes/admin/+layout.svelte"
+if [ -f "$LAYOUT_FILE" ]; then
+    sed -i'' 's/let showPasswordChangeModal = \$state(false);/let showPasswordChangeModal = \$state(false); \/\/ DEMO: Always false/' "$LAYOUT_FILE"
+    sed -i'' 's/showPasswordChangeModal = true;/\/\/ DEMO DISABLED: showPasswordChangeModal = true;/g' "$LAYOUT_FILE"
+    sed -i'' 's/{#if showPasswordChangeModal}/{#if false \&\& showPasswordChangeModal}/g' "$LAYOUT_FILE"
+    echo "  - Password change modal disabled"
+fi
+
+echo "Disabling setup wizard..."
+WIZARD_STORE="src/lib/stores/setupWizard.ts"
+if [ -f "$WIZARD_STORE" ]; then
+    sed -i'' 's/if (isDemoMode) return false;/return false; \/\/ DEMO: Always disabled/g' "$WIZARD_STORE"
+    echo "  - Setup wizard disabled in store"
+fi
+
 SETTINGS_FILE="src/routes/admin/settings/+page.svelte"
 if [ -f "$SETTINGS_FILE" ]; then
     echo "Removing password section from settings..."
@@ -27,7 +43,7 @@ if [ -f "$SETTINGS_FILE" ]; then
     in_security { next }
     
     { print }
-    ' "$SETTINGS_FILE" > "${SETTINGS_FILE}.tmp" && mv "${SETTINGS_FILE}.tmp" "$SETTINGS_FILE" && echo "  - Password section removed") || echo "  - Password section removal skipped (awk error)"
+    ' "$SETTINGS_FILE" > "${SETTINGS_FILE}.tmp" && mv "${SETTINGS_FILE}.tmp" "$SETTINGS_FILE" && echo "  - Password section removed from settings") || echo "  - Password section removal skipped (awk error)"
 fi
 
 echo "Applying branding changes..."
@@ -60,8 +76,6 @@ cat > src/components/admin/DemoBanner.svelte << 'SVELTE_EOF'
 SVELTE_EOF
 
 echo "Adding demo banner to admin layout..."
-
-LAYOUT_FILE="src/routes/admin/+layout.svelte"
 if [ -f "$LAYOUT_FILE" ]; then
     if ! grep -q "DemoBanner" "$LAYOUT_FILE"; then
         sed -i'' "/import AdminHeader from/a\\
