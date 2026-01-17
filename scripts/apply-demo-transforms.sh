@@ -9,6 +9,8 @@ cd "$WORKDIR"
 echo "Working in: $(pwd)"
 ls -la
 
+# Transform demo_* shadow table references to main tables
+# This makes the demo write directly to production tables
 sed -i 's/"demo_profile"/"profile"/g' hooks/demo.go
 sed -i 's/"demo_experience"/"experience"/g' hooks/demo.go
 sed -i 's/"demo_projects"/"projects"/g' hooks/demo.go
@@ -21,7 +23,11 @@ sed -i 's/"demo_awards"/"awards"/g' hooks/demo.go
 sed -i 's/"demo_views"/"views"/g' hooks/demo.go
 sed -i 's/"demo_share_tokens"/"share_tokens"/g' hooks/demo.go
 sed -i 's/"demo_contact_methods"/"contact_methods"/g' hooks/demo.go
+# New collections added in Phase 20.1
+sed -i 's/"demo_testimonials"/"testimonials"/g' hooks/demo.go 2>/dev/null || true
+sed -i 's/"demo_testimonial_requests"/"testimonial_requests"/g' hooks/demo.go 2>/dev/null || true
 
+# Change default password from changeme123 to demo123
 sed -i 's/changeme123/demo123/g' hooks/seed.go
 sed -i 's/changeme123/demo123/g' hooks/auth.go
 sed -i 's/changeme123/demo123/g' main.go
@@ -66,6 +72,12 @@ func RegisterSeedDemoCommand(app *pocketbase.PocketBase) {
 			fmt.Println("Loading demo data (The Doctor's profile)...")
 			if err := loadDemoDataIntoShadowTables(app); err != nil {
 				return fmt.Errorf("failed to load demo data: %w", err)
+			}
+
+			fmt.Println("Loading demo testimonials...")
+			if err := loadDemoTestimonials(app); err != nil {
+				fmt.Printf("Warning: Failed to load demo testimonials: %v\n", err)
+				// Continue even if testimonials fail - they're optional
 			}
 
 			fmt.Println("Creating demo user...")
@@ -127,6 +139,10 @@ func InitDemoInstance(app *pocketbase.PocketBase) {
 				app.Logger().Error("Failed to load demo data", "error", err)
 			} else {
 				app.Logger().Info("Demo data loaded successfully")
+				// Also load testimonials
+				if err := loadDemoTestimonials(app); err != nil {
+					app.Logger().Warn("Failed to load demo testimonials", "error", err)
+				}
 			}
 		}
 		return se.Next()
@@ -175,6 +191,88 @@ func ensureDemoUser(app *pocketbase.PocketBase) error {
 		return fmt.Errorf("failed to create demo user: %w", err)
 	}
 	fmt.Printf("  [ensureDemoUser] SUCCESS: Created demo user: %s\n", email)
+	return nil
+}
+
+// loadDemoTestimonials adds sample testimonials for The Doctor
+func loadDemoTestimonials(app *pocketbase.PocketBase) error {
+	testimonialsColl, err := app.FindCollectionByNameOrId("testimonials")
+	if err != nil {
+		return fmt.Errorf("testimonials collection not found: %w", err)
+	}
+
+	testimonials := []struct {
+		authorName    string
+		authorTitle   string
+		authorCompany string
+		content       string
+		relationship  string
+		status        string
+		featured      bool
+	}{
+		{
+			authorName:    "Clara Oswald",
+			authorTitle:   "English Teacher & Impossible Girl",
+			authorCompany: "Coal Hill School",
+			content:       "Working with The Doctor completely transformed my understanding of what's possible. One day I'm teaching English, the next I'm helping save entire civilizations. His ability to find elegant solutions under pressure is unmatched—even if those solutions sometimes involve running very fast and shouting. 10/10 would recommend, but pack comfortable shoes.",
+			relationship:  "colleague",
+			status:        "approved",
+			featured:      true,
+		},
+		{
+			authorName:    "Captain Jack Harkness",
+			authorTitle:   "Director",
+			authorCompany: "Torchwood Institute",
+			content:       "The Doctor is the most brilliant consultant I've ever worked with. Sure, he sometimes causes as many problems as he solves, and yes, he once accidentally made my coffee machine sentient, but when the chips are down, there's no one else I'd want debugging the timeline. His crisis management skills are literally out of this world.",
+			relationship:  "client",
+			status:        "approved",
+			featured:      true,
+		},
+		{
+			authorName:    "Donna Noble",
+			authorTitle:   "Temp & Part-Time Universe Saver",
+			authorCompany: "Self-Employed",
+			content:       "Look, he's a bit weird. Talks too fast, has a thing for running, and his fashion choices are... questionable. But he's also the most compassionate, intelligent, and genuinely good person I've ever met. He made me feel like I could do anything. Even saved reality that one time. Just don't expect him to remember your birthday—he's terrible with linear time.",
+			relationship:  "colleague",
+			status:        "approved",
+			featured:      false,
+		},
+		{
+			authorName:    "Rose Tyler",
+			authorTitle:   "Dimension Cannon Operator",
+			authorCompany: "Torchwood (Parallel Universe)",
+			content:       "Before I met The Doctor, I was just a shop girl. He showed me the universe—literally. His mentorship completely changed my career trajectory. Now I lead a parallel universe Torchwood team. Fair warning: working with him may result in getting trapped in alternate dimensions, but the personal growth opportunities are unparalleled.",
+			relationship:  "report",
+			status:        "approved",
+			featured:      true,
+		},
+		{
+			authorName:    "Brigadier Alistair Gordon Lethbridge-Stewart",
+			authorTitle:   "Commander (Retired)",
+			authorCompany: "UNIT",
+			content:       "In my decades at UNIT, no scientific advisor has been more valuable—or more exasperating—than The Doctor. He's saved Earth more times than I can count, usually at the last possible moment, often using equipment held together with string and optimism. Unconventional? Yes. Effective? Absolutely. Would hire again.",
+			relationship:  "manager",
+			status:        "approved",
+			featured:      false,
+		},
+	}
+
+	for _, t := range testimonials {
+		testimonial := core.NewRecord(testimonialsColl)
+		testimonial.Set("author_name", t.authorName)
+		testimonial.Set("author_title", t.authorTitle)
+		testimonial.Set("author_company", t.authorCompany)
+		testimonial.Set("content", t.content)
+		testimonial.Set("relationship", t.relationship)
+		testimonial.Set("status", t.status)
+		testimonial.Set("featured", t.featured)
+		testimonial.Set("verification_method", "none")
+		if err := app.Save(testimonial); err != nil {
+			return fmt.Errorf("failed to save testimonial from %s: %w", t.authorName, err)
+		}
+	}
+
+	fmt.Printf("  Created %d demo testimonials\n", len(testimonials))
 	return nil
 }
 GOEOF
@@ -237,6 +335,7 @@ func RegisterDemoRestrictions(app *pocketbase.PocketBase) {
 			path := e.Request.URL.Path
 			method := e.Request.Method
 			
+			// Block resume upload in demo mode
 			if method == http.MethodPost && strings.Contains(path, "/api/resume/upload") {
 				return e.JSON(http.StatusForbidden, map[string]interface{}{
 					"error":   "Resume upload is disabled in demo mode",
@@ -245,6 +344,16 @@ func RegisterDemoRestrictions(app *pocketbase.PocketBase) {
 				})
 			}
 
+			// Block testimonial request creation (prevent spam)
+			if method == http.MethodPost && strings.Contains(path, "/api/testimonials/requests") {
+				return e.JSON(http.StatusForbidden, map[string]interface{}{
+					"error":   "Testimonial requests are disabled in demo mode",
+					"message": "This is a public demo. Creating testimonial request links is disabled.",
+					"demo":    true,
+				})
+			}
+
+			// Rate limit file uploads
 			if method == http.MethodPost && (strings.Contains(path, "/api/files") || strings.Contains(path, "/api/collections") && strings.Contains(path, "/records")) {
 				contentType := e.Request.Header.Get("Content-Type")
 				if strings.Contains(contentType, "multipart/form-data") {

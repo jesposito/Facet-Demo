@@ -59,14 +59,27 @@ cat > src/components/admin/DemoBanner.svelte << 'SVELTE_EOF'
 {/if}
 SVELTE_EOF
 
-echo "Adding demo banner..."
-sed -i'' "/import AdminHeader from/a\\
-	import DemoBanner from '\$components/admin/DemoBanner.svelte';" src/routes/admin/+layout.svelte && echo "  - Banner import added"
-sed -i'' 's/<AdminHeader \/>/<AdminHeader \/>\
-		<DemoBanner \/>/g' src/routes/admin/+layout.svelte && echo "  - Banner component added"
-sed -i'' 's/mt-16">/mt-28">/g' src/routes/admin/+layout.svelte && echo "  - Layout margin adjusted"
+echo "Adding demo banner to admin layout..."
 
-echo "Hiding demo toggle..."
-sed -i'' 's/<div class="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700/<div class="hidden relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700/g' src/components/admin/AdminHeader.svelte && echo "  - Demo toggle hidden"
+LAYOUT_FILE="src/routes/admin/+layout.svelte"
+if [ -f "$LAYOUT_FILE" ]; then
+    if ! grep -q "DemoBanner" "$LAYOUT_FILE"; then
+        sed -i'' "/import AdminHeader from/a\\
+	import DemoBanner from '\$components/admin/DemoBanner.svelte';" "$LAYOUT_FILE" && echo "  - Banner import added"
+        
+        sed -i'' 's/<AdminHeader \/>/<AdminHeader \/>\
+		<DemoBanner \/>/g' "$LAYOUT_FILE" && echo "  - Banner component added"
+        
+        sed -i'' 's/mt-16 /mt-28 /g' "$LAYOUT_FILE" && echo "  - Layout margin adjusted for banner"
+    else
+        echo "  - Banner already present, skipping"
+    fi
+fi
+
+echo "Hiding demo toggle in AdminHeader..."
+HEADER_FILE="src/components/admin/AdminHeader.svelte"
+if [ -f "$HEADER_FILE" ]; then
+    sed -i'' 's/<div class="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700/<div class="hidden relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700/g' "$HEADER_FILE" && echo "  - Demo toggle hidden"
+fi
 
 echo "Frontend transforms complete!"
